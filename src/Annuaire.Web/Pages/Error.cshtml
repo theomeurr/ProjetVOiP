@@ -1,0 +1,13 @@
+@page
+@model ErrorModel
+@{
+    ViewData["Title"] = "Erreur";
+}
+
+<h1>Une erreur est survenue</h1>
+<p>L'annuaire n'a pas pu afficher cette page. Réessayez dans quelques instants ; si le problème persiste, contactez la DSI.</p>
+
+@if (Model.ShowRequestId)
+{
+    <p>Référence à communiquer : <strong>@Model.RequestId</strong></p>
+}

@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.Negotiate" Version="10.0.12" />
+    <PackageReference Include="System.DirectoryServices.Protocols" Version="10.0.12" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Données fictives : utiles en développement, jamais publiées sur le serveur. -->
+    <Content Update="Data\**" CopyToPublishDirectory="Never" />
+    <None Update="Data\**" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+
+</Project>

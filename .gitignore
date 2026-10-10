@@ -1,0 +1,17 @@
+# Build
+bin/
+obj/
+publish/
+*.user
+.vs/
+.vscode/
+.idea/
+.DS_Store
+
+# Secrets : ne jamais committer la configuration de production
+appsettings.Production.json
+appsettings.*.local.json
+*.pfx
+
+# Journaux applicatifs
+logs/
