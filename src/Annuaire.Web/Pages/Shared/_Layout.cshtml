@@ -3,13 +3,14 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] – Annuaire</title>
+    <meta name="color-scheme" content="light" />
+    <title>@ViewData["Title"] – Ville de Montmagny</title>
+    <link rel="preload" href="~/fonts/open-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="~/fonts/anton-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body>
-    <main>
-        @RenderBody()
-    </main>
+    @RenderBody()
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

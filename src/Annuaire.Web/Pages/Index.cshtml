@@ -4,5 +4,80 @@
     ViewData["Title"] = "Annuaire";
 }
 
-<h1>Annuaire</h1>
-<p>Étape 1 : la couche de données est en place. Données brutes : <a href="/api/directory">/api/directory</a>.</p>
+<div data-annuaire
+     data-directory-url="@Url.Content("~/api/directory")"
+     data-photo-url="@Url.Content("~/api/photo/")"
+     data-call-url="@Url.Content("~/api/call")"
+     data-can-call="@(Model.CanCall ? "true" : "false")"
+     data-call-disabled-reason="@Model.CallDisabledReason">
+
+    @Html.AntiForgeryToken()
+
+    <header class="masthead">
+        <div class="wrap">
+            <a class="brand" href="@Url.Content("~/")">
+                <h1 class="brand-title">Annuaire</h1>
+                <span class="brand-sub">@Model.OrganizationName</span>
+            </a>
+            <p class="whoami">
+                @if (Model.CurrentUser is { } me)
+                {
+                    <text>Connecté en tant que <strong>@me.DisplayName</strong></text>
+                    @if (!string.IsNullOrWhiteSpace(me.IpPhone))
+                    {
+                        <text> – poste <strong>@me.IpPhone</strong></text>
+                    }
+                }
+                else
+                {
+                    <text>Connecté en tant que <strong>@Model.IdentityName</strong></text>
+                }
+            </p>
+        </div>
+    </header>
+
+    <div class="searchbar" data-searchbar>
+        <div class="wrap">
+            @if (!Model.CanCall && Model.DirectoryAvailable)
+            {
+                <div class="notice" role="note">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20Zm0 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16Zm-1 7h2v6h-2v-6Zm0-4h2v2h-2V7Z"/></svg>
+                    <span>@Model.CallDisabledReason</span>
+                </div>
+            }
+            <div class="search-row" role="search">
+                <div class="field">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M10.5 3a7.5 7.5 0 0 1 5.96 12.05l4.25 4.24-1.42 1.42-4.24-4.25A7.5 7.5 0 1 1 10.5 3Zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Z"/></svg>
+                    <label class="visually-hidden" for="search">Rechercher dans l'annuaire</label>
+                    <input class="search-input" id="search" type="search" autocomplete="off" spellcheck="false" autofocus
+                           placeholder="Nom, service, fonction, poste…" />
+                    <button class="clear-search" type="button" data-clear hidden aria-label="Effacer la recherche">×</button>
+                </div>
+                <div class="field">
+                    <label class="visually-hidden" for="service">Filtrer par service</label>
+                    <select class="service-select" id="service">
+                        <option value="">Tous les services</option>
+                    </select>
+                </div>
+            </div>
+            <div class="search-status">
+                <span data-count aria-live="polite"></span>
+                <span class="search-hint">Raccourci : <kbd>/</kbd> pour rechercher</span>
+            </div>
+        </div>
+    </div>
+
+    <main class="results wrap" data-results aria-busy="true"></main>
+    <nav class="az-rail" data-rail aria-label="Index alphabétique"></nav>
+</div>
+
+<footer class="footer">
+    <div class="wrap">
+        Source : Active Directory · actualisé à <span data-loaded-at>–</span> · @Model.OrganizationName
+    </div>
+</footer>
+<div class="toast-zone" data-toasts aria-live="polite"></div>
+
+@section Scripts {
+    <script src="~/js/annuaire.js" asp-append-version="true"></script>
+}

@@ -4,10 +4,20 @@
     ViewData["Title"] = "Erreur";
 }
 
-<h1>Une erreur est survenue</h1>
-<p>L'annuaire n'a pas pu afficher cette page. Réessayez dans quelques instants ; si le problème persiste, contactez la DSI.</p>
-
-@if (Model.ShowRequestId)
-{
-    <p>Référence à communiquer : <strong>@Model.RequestId</strong></p>
-}
+<header class="masthead">
+    <div class="wrap">
+        <a class="brand" href="@Url.Content("~/")">
+            <span class="brand-title">Annuaire</span>
+        </a>
+    </div>
+</header>
+<main class="wrap">
+    <div class="empty" role="alert">
+        <p class="empty-title">Une erreur est survenue</p>
+        <p>L'annuaire n'a pas pu afficher cette page. Réessayez dans quelques instants ; si le problème persiste, contactez la DSI.</p>
+        @if (Model.ShowRequestId)
+        {
+            <p>Référence à communiquer : <strong>@Model.RequestId</strong></p>
+        }
+    </div>
+</main>
