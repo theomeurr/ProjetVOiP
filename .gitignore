@@ -11,6 +11,11 @@ publish/
 # Secrets : ne jamais committer la configuration de production
 appsettings.Production.json
 appsettings.*.local.json
+
+# Données réelles d'agents (tests locaux) : jamais dans le dépôt
+*.local.json
+*.xlsx
+*.csv
 *.pfx
 
 # Journaux applicatifs
