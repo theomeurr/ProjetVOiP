@@ -12,8 +12,8 @@
         directoryUrl: root.dataset.directoryUrl,
         photoUrl: root.dataset.photoUrl,
         callUrl: root.dataset.callUrl,
-        canCall: root.dataset.canCall === "true",
-        callDisabledReason: root.dataset.callDisabledReason || "",
+        // "server" : le téléphone de l'agent compose ; "link" : lien tel: ; "manual" : copie du numéro.
+        callMode: root.dataset.callMode || "manual",
     };
 
     const els = {
@@ -120,29 +120,34 @@
     function toast(message, kind) {
         const node = el("div", `toast is-${kind}`);
         node.setAttribute("role", kind === "error" ? "alert" : "status");
-        node.appendChild(icon(kind === "error" ? "alert" : "check"));
+        node.appendChild(icon(kind === "error" ? "alert" : kind === "info" ? "info" : "check"));
         node.appendChild(el("span", null, message));
         els.toasts.appendChild(node);
-        setTimeout(() => node.remove(), kind === "error" ? 7000 : 4500);
+        setTimeout(() => node.remove(), kind === "success" ? 4500 : 7000);
     }
 
     // ---------------------------------------------------------------- Actions
 
+    async function writeClipboard(text) {
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+            return;
+        }
+        const area = el("textarea");
+        area.value = text;
+        area.setAttribute("readonly", "");
+        area.style.position = "fixed";
+        area.style.opacity = "0";
+        document.body.appendChild(area);
+        area.select();
+        const ok = document.execCommand("copy");
+        area.remove();
+        if (!ok) throw new Error("copie refusée");
+    }
+
     async function copy(text, button) {
         try {
-            if (navigator.clipboard && window.isSecureContext) {
-                await navigator.clipboard.writeText(text);
-            } else {
-                const area = el("textarea");
-                area.value = text;
-                area.setAttribute("readonly", "");
-                area.style.position = "fixed";
-                area.style.opacity = "0";
-                document.body.appendChild(area);
-                area.select();
-                document.execCommand("copy");
-                area.remove();
-            }
+            await writeClipboard(text);
             button.classList.add("is-done");
             button.replaceChildren(icon("check"));
             setTimeout(() => {
@@ -161,8 +166,23 @@
 
     // Le navigateur n'envoie que l'identifiant de la fiche et le champ choisi :
     // le serveur relit le numéro dans l'annuaire et ne fait composer que le poste de l'utilisateur connecté.
+    // Agent sans téléphone pilotable : le numéro est copié pour être composé à la main.
+    async function manualCall(entry, field) {
+        const number = entry[field];
+        try {
+            await writeClipboard(number);
+            toast(`Numéro copié : ${number}. Composez-le sur votre téléphone pour joindre ${entry.displayName}.`, "info");
+        } catch {
+            toast(`Composez le ${number} sur votre téléphone pour joindre ${entry.displayName}.`, "info");
+        }
+    }
+
     async function call(entry, field, button) {
-        if (!config.canCall || button.getAttribute("aria-busy") === "true") return;
+        if (config.callMode === "manual") {
+            await manualCall(entry, field);
+            return;
+        }
+        if (button.getAttribute("aria-busy") === "true") return;
         button.setAttribute("aria-busy", "true");
         try {
             const response = await fetch(config.callUrl, {
@@ -181,6 +201,8 @@
             if (response.ok && result && result.success) {
                 if (result.clientAction) window.location.href = result.clientAction;
                 toast(result.message || "Appel lancé sur votre poste.", "success");
+            } else if (response.status === 409) {
+                await manualCall(entry, field);
             } else if (response.status === 429) {
                 toast((result && result.message) || "Trop d'appels en peu de temps. Patientez une minute.", "error");
             } else {
@@ -226,11 +248,9 @@
         callButton.appendChild(icon("phone"));
         callButton.appendChild(el("span", null, "Appeler"));
         callButton.setAttribute("aria-label", `Appeler ${entry.displayName} – ${field.label.toLowerCase()} ${number}`);
-        if (config.canCall) {
-            callButton.addEventListener("click", () => call(entry, field.key, callButton));
-        } else {
-            callButton.disabled = true;
-            callButton.title = config.callDisabledReason;
+        callButton.addEventListener("click", () => call(entry, field.key, callButton));
+        if (config.callMode === "manual") {
+            callButton.title = "Copie le numéro, à composer sur votre téléphone";
         }
 
         const copyButton = el("button", "btn-copy");

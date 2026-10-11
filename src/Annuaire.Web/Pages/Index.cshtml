@@ -8,8 +8,7 @@
      data-directory-url="@Url.Content("~/api/directory")"
      data-photo-url="@Url.Content("~/api/photo/")"
      data-call-url="@Url.Content("~/api/call")"
-     data-can-call="@(Model.CanCall ? "true" : "false")"
-     data-call-disabled-reason="@Model.CallDisabledReason">
+     data-call-mode="@Model.CallModeAttribute">
 
     @Html.AntiForgeryToken()
 
@@ -38,11 +37,11 @@
 
     <div class="searchbar" data-searchbar>
         <div class="wrap">
-            @if (!Model.CanCall && Model.DirectoryAvailable)
+            @if (!string.IsNullOrEmpty(Model.CallNotice))
             {
                 <div class="notice" role="note">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20Zm0 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16Zm-1 7h2v6h-2v-6Zm0-4h2v2h-2V7Z"/></svg>
-                    <span>@Model.CallDisabledReason</span>
+                    <span>@Model.CallNotice</span>
                 </div>
             }
             <div class="search-row" role="search">

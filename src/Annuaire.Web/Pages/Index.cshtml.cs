@@ -18,10 +18,18 @@ public class IndexModel(DirectoryService directory, CallService calls, IOptions<
 
     public bool DirectoryAvailable { get; private set; } = true;
 
-    public bool CanCall { get; private set; }
+    /// <summary>Moyen d'appel de l'agent (automatique, lien tel:, ou numéro à composer soi-même).</summary>
+    public CallMode CallMode { get; private set; } = CallMode.Manual;
 
-    /// <summary>Raison affichée quand l'appel en un clic est désactivé.</summary>
-    public string? CallDisabledReason { get; private set; }
+    /// <summary>Explication affichée quand l'appel n'est pas entièrement automatique.</summary>
+    public string? CallNotice { get; private set; }
+
+    public string CallModeAttribute => CallMode switch
+    {
+        CallMode.Server => "server",
+        CallMode.ClientLink => "link",
+        _ => "manual"
+    };
 
     public async Task OnGetAsync(CancellationToken cancellationToken)
     {
@@ -38,7 +46,7 @@ public class IndexModel(DirectoryService directory, CallService calls, IOptions<
 
         if (!DirectoryAvailable)
         {
-            CallDisabledReason = "L'annuaire est momentanément indisponible : l'appel en un clic est suspendu.";
+            CallNotice = "L'annuaire est momentanément indisponible : le bouton « Appeler » copie le numéro, composez-le sur votre téléphone.";
             return;
         }
 
@@ -48,7 +56,7 @@ public class IndexModel(DirectoryService directory, CallService calls, IOptions<
         }
 
         var status = calls.GetCallerStatus(CurrentUser);
-        CanCall = status.CanCall;
-        CallDisabledReason = status.Reason;
+        CallMode = status.Mode;
+        CallNotice = status.Notice;
     }
 }

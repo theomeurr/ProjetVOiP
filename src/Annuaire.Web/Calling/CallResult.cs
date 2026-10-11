@@ -8,7 +8,10 @@ public enum CallStatus
     InvalidNumber,
     NotFound,
     PhoneUnreachable,
-    ProviderError
+    ProviderError,
+
+    /// <summary>Pas de téléphone pilotable : l'agent compose lui-même le numéro.</summary>
+    ManualDial
 }
 
 /// <summary>Résultat d'une demande d'appel.</summary>

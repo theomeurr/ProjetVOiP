@@ -18,6 +18,7 @@ public class CallServiceTests
         with { TelephoneNumber = "01 34 28 30 99", Department = "Services techniques" };
     private static readonly DirectoryEntry Karim = TestEntries.Person("u3", "Benali", "Karim", account: "kbenali", ipPhone: null, phoneIp: null);
     private static readonly DirectoryEntry Intrus = TestEntries.Person("u4", "Intrus", "Ip", account: "intrus", ipPhone: "5000", phoneIp: "192.168.0.10");
+    private static readonly DirectoryEntry SansIp = TestEntries.Person("u5", "Sansip", "Paul", account: "psansip", ipPhone: "5001", phoneIp: null);
 
     private readonly RecordingProvider _provider = new();
     private readonly ListLoggerFactory _logs = new();
@@ -25,7 +26,7 @@ public class CallServiceTests
     private CallService Create(ICallProvider? provider = null, DisplayOptions? display = null)
     {
         var directory = new DirectoryService(
-            new StaticDirectoryProvider([Laura, Helene, Karim, Intrus]),
+            new StaticDirectoryProvider([Laura, Helene, Karim, Intrus, SansIp]),
             new MemoryCache(new MemoryCacheOptions()),
             MsOptions.Create(new DirectoryOptions()),
             TimeProvider.System,
@@ -37,6 +38,7 @@ public class CallServiceTests
             new PhoneNumberNormalizer(MsOptions.Create(new NumberingOptions())),
             new PhoneSubnetPolicy(MsOptions.Create(new CallingOptions { AllowedPhoneSubnets = ["10.20.0.0/16"] })),
             MsOptions.Create(display ?? new DisplayOptions()),
+            MsOptions.Create(new CallingOptions()),
             _logs);
     }
 
@@ -80,30 +82,53 @@ public class CallServiceTests
     }
 
     [Fact]
-    public async Task Unknown_windows_user_cannot_call()
+    public async Task Unknown_windows_user_dials_manually()
     {
-        var result = await Create().DialAsync(User(@"MONTMAGNY\inconnu"), "u2", CallField.IpPhone, default);
+        var service = Create();
 
-        Assert.Equal(CallStatus.NotAllowed, result.Status);
+        Assert.Equal(CallMode.Manual, service.GetCallerStatus(null).Mode);
+        var result = await service.DialAsync(User(@"MONTMAGNY\inconnu"), "u2", CallField.TelephoneNumber, default);
+
+        Assert.Equal(CallStatus.ManualDial, result.Status);
+        Assert.Contains("01 34 28 30 99", result.Message);
         Assert.Empty(_provider.Calls);
     }
 
     [Fact]
-    public async Task Caller_without_extension_cannot_call()
+    public async Task Caller_without_extension_dials_manually()
     {
-        var result = await Create().DialAsync(User("kbenali"), "u2", CallField.IpPhone, default);
+        var service = Create();
 
-        Assert.Equal(CallStatus.NotAllowed, result.Status);
-        Assert.Contains("Aucun poste", result.Message);
+        var status = service.GetCallerStatus(Karim);
+        var result = await service.DialAsync(User("kbenali"), "u2", CallField.IpPhone, default);
+
+        Assert.Equal(CallMode.Manual, status.Mode);
+        Assert.Contains("copie le numéro", status.Notice);
+        Assert.Equal(CallStatus.ManualDial, result.Status);
         Assert.Empty(_provider.Calls);
     }
 
     [Fact]
-    public async Task Phone_ip_outside_allowed_subnets_is_refused()
+    public async Task Phone_ip_outside_allowed_subnets_falls_back_to_tel_link_without_contacting_the_ip()
     {
-        var result = await Create().DialAsync(User("intrus"), "u2", CallField.IpPhone, default);
+        var service = Create();
 
-        Assert.Equal(CallStatus.NotAllowed, result.Status);
+        Assert.Equal(CallMode.ClientLink, service.GetCallerStatus(Intrus).Mode);
+        var result = await service.DialAsync(User("intrus"), "u2", CallField.TelephoneNumber, default);
+
+        Assert.True(result.Success);
+        Assert.Equal("tel:3099", result.ClientAction);
+        Assert.Empty(_provider.Calls);
+        Assert.Contains(_logs.Entries, e => e.Message.Contains("IP du téléphone refusée : 192.168.0.10"));
+    }
+
+    [Fact]
+    public async Task Missing_phone_ip_falls_back_to_tel_link()
+    {
+        var result = await Create().DialAsync(User("psansip"), "u2", CallField.Mobile, default);
+
+        Assert.True(result.Success);
+        Assert.Equal("tel:00612345678", result.ClientAction);
         Assert.Empty(_provider.Calls);
     }
 
@@ -137,13 +162,13 @@ public class CallServiceTests
     }
 
     [Fact]
-    public async Task Disabled_provider_status_is_explained()
+    public async Task Disabled_provider_means_manual_dialing_for_everyone()
     {
         var service = Create(new DisabledProvider());
 
-        Assert.False(service.GetCallerStatus(Laura).CanCall);
+        Assert.Equal(CallMode.Manual, service.GetCallerStatus(Laura).Mode);
         var result = await service.DialAsync(User("lmartin"), "u2", CallField.IpPhone, default);
-        Assert.Equal(CallStatus.Disabled, result.Status);
+        Assert.Equal(CallStatus.ManualDial, result.Status);
     }
 
     [Fact]
@@ -171,7 +196,7 @@ public class CallServiceTests
         Assert.Contains("destinataire=Hélène DUPONT", audit[0].Message);
         Assert.Contains("numero=3099", audit[0].Message);
         Assert.Contains("APPEL OK", audit[0].Message);
-        Assert.Contains("APPEL NotAllowed", audit[1].Message);
+        Assert.Contains("APPEL ManualDial", audit[1].Message);
         Assert.Equal(LogLevel.Warning, audit[1].Level);
     }
 

@@ -635,6 +635,8 @@ a { color: inherit; }
 
 .toast.is-error svg { color: #F2B8A0; }
 
+.toast.is-info svg { color: #D9D6CF; }
+
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
 
 /* ---------- Pied de page ---------- */

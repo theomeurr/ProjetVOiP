@@ -50,6 +50,7 @@ public static class CallEndpoints
             CallStatus.Disabled or CallStatus.NotAllowed => StatusCodes.Status403Forbidden,
             CallStatus.NotFound => StatusCodes.Status404NotFound,
             CallStatus.InvalidNumber => StatusCodes.Status422UnprocessableEntity,
+            CallStatus.ManualDial => StatusCodes.Status409Conflict,
             CallStatus.PhoneUnreachable => StatusCodes.Status504GatewayTimeout,
             _ => StatusCodes.Status502BadGateway
         };
