@@ -16,6 +16,9 @@ public sealed class CallingOptions
     /// </summary>
     public List<string> AllowedPhoneSubnets { get; set; } = [];
 
+    /// <summary>Nombre maximal d'appels par minute et par agent. 0 = pas de limite (par défaut).</summary>
+    public int MaxCallsPerMinute { get; set; }
+
     public YealinkOptions Yealink { get; set; } = new();
 
     public GenericHttpOptions GenericHttp { get; set; } = new();

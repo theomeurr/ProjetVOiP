@@ -217,7 +217,7 @@ public sealed class CallService(
             context.Caller?.PhoneIp ?? "-",
             context.Target?.DisplayName ?? "-",
             context.Target?.Id ?? "-",
-            field,
+            field.ToString(),
             context.Number?.Dialable ?? "-",
             context.ProviderName ?? provider.Name,
             result.Detail ?? result.Message ?? "");

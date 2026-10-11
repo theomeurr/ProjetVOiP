@@ -6,10 +6,14 @@ namespace Annuaire.Web.Api;
 
 public static class CallEndpoints
 {
+    public const string RateLimitPolicy = "calls";
+
     public static IEndpointRouteBuilder MapCallEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapPost("/api/call", DialAsync)
            .RequireAuthorization()
+           // Sans effet tant que Calling:MaxCallsPerMinute vaut 0 (pas de limite).
+           .RequireRateLimiting(RateLimitPolicy)
            // La validation anti-CSRF est faite explicitement ci-dessous (corps JSON + jeton dans l'en-tête).
            .DisableAntiforgery();
         return app;

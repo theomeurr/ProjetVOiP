@@ -1,0 +1,20 @@
+@page
+@model NotFoundModel
+@{
+    ViewData["Title"] = "Page introuvable";
+}
+
+<header class="masthead">
+    <div class="wrap">
+        <a class="brand" href="@Url.Content("~/")">
+            <span class="brand-title">Annuaire</span>
+        </a>
+    </div>
+</header>
+<main class="wrap">
+    <div class="empty" role="alert">
+        <p class="empty-title">Page introuvable</p>
+        <p>Cette adresse ne correspond à aucune page de l'annuaire.</p>
+        <p><a href="@Url.Content("~/")">Retour à l'annuaire</a></p>
+    </div>
+</main>

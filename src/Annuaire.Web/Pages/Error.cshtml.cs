@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -8,13 +7,14 @@ namespace Annuaire.Web.Pages;
 [IgnoreAntiforgeryToken]
 public class ErrorModel : PageModel
 {
-    public string? RequestId { get; set; }
+    /// <summary>Référence à communiquer à la DSI pour retrouver l'erreur dans le journal.</summary>
+    public string? RequestId { get; private set; }
 
     public bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
 
-    public void OnGet()
+    public void OnGet(string? @ref)
     {
-        RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier;
+        // Seuls des caractères sûrs sont affichés (la référence vient de l'URL).
+        RequestId = string.IsNullOrEmpty(@ref) ? HttpContext.TraceIdentifier : new string(@ref.Where(c => char.IsAsciiLetterOrDigit(c) || c is ':' or '-' or '.').Take(64).ToArray());
     }
 }
-
