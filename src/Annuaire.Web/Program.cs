@@ -1,6 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Annuaire.Web.Api;
+using Annuaire.Web.Calling;
+using Annuaire.Web.Calling.Providers;
+using Annuaire.Web.Dev;
 using Annuaire.Web.Directory;
 using Annuaire.Web.Options;
 using Annuaire.Web.Security;
@@ -15,6 +18,8 @@ builder.Services.Configure<DirectoryOptions>(builder.Configuration.GetSection(Di
 builder.Services.Configure<LdapOptions>(builder.Configuration.GetSection(LdapOptions.SectionName));
 builder.Services.Configure<DisplayOptions>(builder.Configuration.GetSection(DisplayOptions.SectionName));
 builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection(AuthOptions.SectionName));
+builder.Services.Configure<CallingOptions>(builder.Configuration.GetSection(CallingOptions.SectionName));
+builder.Services.Configure<NumberingOptions>(builder.Configuration.GetSection(NumberingOptions.SectionName));
 
 // ---------- Authentification ----------
 var developmentUser = builder.Configuration[$"{AuthOptions.SectionName}:{nameof(AuthOptions.DevelopmentUser)}"];
@@ -54,15 +59,46 @@ builder.Services.AddSingleton<IDirectoryProvider>(sp => directoryOptions.Provide
 });
 builder.Services.AddSingleton<DirectoryService>();
 
+// ---------- Click-to-call ----------
+var callingOptions = builder.Configuration.GetSection(CallingOptions.SectionName).Get<CallingOptions>() ?? new();
+builder.Services.AddSingleton<PhoneNumberNormalizer>();
+builder.Services.AddSingleton<PhoneSubnetPolicy>();
+builder.Services.AddSingleton<CallService>();
+builder.Services.AddSingleton<ICallProvider>(sp => callingOptions.Provider switch
+{
+    CallProviderKind.YealinkActionUri => ActivatorUtilities.CreateInstance<YealinkActionUriProvider>(sp),
+    CallProviderKind.GenericHttp => ActivatorUtilities.CreateInstance<GenericHttpProvider>(sp),
+    CallProviderKind.TelLink => ActivatorUtilities.CreateInstance<TelLinkProvider>(sp),
+    _ => new DisabledProvider()
+});
+
+// Client HTTP vers les téléphones : identifiants Basic/Digest gérés par le handler, pas de redirection suivie.
+builder.Services.AddHttpClient(YealinkActionUriProvider.HttpClientName, client =>
+        client.Timeout = TimeSpan.FromSeconds(Math.Max(1, callingOptions.TimeoutSeconds)))
+    .ConfigurePrimaryHttpMessageHandler(() => CreatePhoneHandler(
+        callingOptions.Yealink.Username, callingOptions.Yealink.Password, callingOptions.Yealink.AcceptInvalidCertificate));
+
+builder.Services.AddHttpClient(GenericHttpProvider.HttpClientName, client =>
+        client.Timeout = TimeSpan.FromSeconds(Math.Max(1, callingOptions.TimeoutSeconds)))
+    .ConfigurePrimaryHttpMessageHandler(() => CreatePhoneHandler(null, null, callingOptions.GenericHttp.AcceptInvalidCertificate));
+
 // ---------- Web ----------
 builder.Services.AddRazorPages();
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
-    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false));
     options.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
 });
 
 var app = builder.Build();
+
+// Vérifie dès le démarrage la liste des sous-réseaux (erreur claire plutôt qu'au premier appel).
+var subnetPolicy = app.Services.GetRequiredService<PhoneSubnetPolicy>();
+if (callingOptions.Provider is CallProviderKind.YealinkActionUri && !subnetPolicy.HasRestriction)
+{
+    app.Logger.LogWarning("Calling:AllowedPhoneSubnets est vide : toute IP lue dans l'AD sera contactée. Renseignez le sous-réseau VoIP.");
+}
+app.Logger.LogInformation("Fournisseur d'appel : {Provider}", callingOptions.Provider);
 
 if (!app.Environment.IsDevelopment())
 {
@@ -78,8 +114,36 @@ app.UseAuthorization();
 app.MapStaticAssets();
 app.MapRazorPages().WithStaticAssets();
 app.MapDirectoryEndpoints();
+app.MapCallEndpoints();
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapFakePhone();
+}
 
 app.Run();
+
+static SocketsHttpHandler CreatePhoneHandler(string? username, string? password, bool acceptInvalidCertificate)
+{
+    var handler = new SocketsHttpHandler
+    {
+        AllowAutoRedirect = false,
+        UseCookies = false,
+        PooledConnectionLifetime = TimeSpan.FromMinutes(5)
+    };
+    if (!string.IsNullOrEmpty(username))
+    {
+        handler.Credentials = new System.Net.NetworkCredential(username, password);
+    }
+
+    if (acceptInvalidCertificate)
+    {
+        // Certificats auto-signés des postes. Le risque est limité par Calling:AllowedPhoneSubnets.
+        handler.SslOptions.RemoteCertificateValidationCallback = (_, _, _, _) => true;
+    }
+
+    return handler;
+}
 
 /// <summary>Exposé pour les tests d'intégration.</summary>
 public partial class Program;

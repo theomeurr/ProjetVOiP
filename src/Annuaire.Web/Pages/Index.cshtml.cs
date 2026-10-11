@@ -1,3 +1,4 @@
+using Annuaire.Web.Calling;
 using Annuaire.Web.Directory;
 using Annuaire.Web.Options;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -5,7 +6,7 @@ using Microsoft.Extensions.Options;
 
 namespace Annuaire.Web.Pages;
 
-public class IndexModel(DirectoryService directory, IOptions<DisplayOptions> display, ILogger<IndexModel> logger) : PageModel
+public class IndexModel(DirectoryService directory, CallService calls, IOptions<DisplayOptions> display, ILogger<IndexModel> logger) : PageModel
 {
     public string OrganizationName => display.Value.OrganizationName;
 
@@ -38,19 +39,16 @@ public class IndexModel(DirectoryService directory, IOptions<DisplayOptions> dis
         if (!DirectoryAvailable)
         {
             CallDisabledReason = "L'annuaire est momentanément indisponible : l'appel en un clic est suspendu.";
+            return;
         }
-        else if (CurrentUser is null)
+
+        if (CurrentUser is null)
         {
             logger.LogWarning("Utilisateur {Identity} introuvable dans l'annuaire", IdentityName);
-            CallDisabledReason = "Votre compte n'a pas été trouvé dans l'annuaire : l'appel en un clic est désactivé. Contactez la DSI.";
         }
-        else if (string.IsNullOrWhiteSpace(CurrentUser.IpPhone))
-        {
-            CallDisabledReason = "Aucun poste téléphonique n'est associé à votre compte : l'appel en un clic est désactivé. Vous pouvez copier les numéros, ou demander à la DSI de renseigner votre poste.";
-        }
-        else
-        {
-            CanCall = true;
-        }
+
+        var status = calls.GetCallerStatus(CurrentUser);
+        CanCall = status.CanCall;
+        CallDisabledReason = status.Reason;
     }
 }
